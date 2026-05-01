@@ -1,12 +1,19 @@
+#!/usr/bin/bash
+
 # Aliases
 
 ## General
 
 alias update='sudo apt update -y'
 alias upgrade='sudo apt upgrade -y'
+alias clean-upgrade="update --refresh && upgrade && sudo dnf clean all && sudo dnf autoremove"
 alias sudo='sudo '
 alias c='clear'
 alias ipconfig='ifconfig'
+
+## Git
+
+alias git-remove-untracked='git fetch --prune && git branch -r | awk "{print \$1}" | egrep -v -f /dev/fd/0 <(git branch -vv | grep origin) | awk "{print \$1}" | xargs git branch -d'
 
 ## LS
 
@@ -23,7 +30,46 @@ alias dkup='dkc up'
 alias dkdn='dkc down'
 
 ## Python
-alias pip='py -m pip'
+
+python() {
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        "$VIRTUAL_ENV/bin/python" "$@"
+    else
+        /usr/bin/python3.12 "$@"
+    fi
+}
+
+python3() {
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        "$VIRTUAL_ENV/bin/python" "$@"
+    else
+        /usr/bin/python3
+    fi
+}
+
+py() {
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        "$VIRTUAL_ENV/bin/python" "$@"
+    else
+        /usr/bin/python3.12 "$@"
+    fi
+}
+
+pip() {
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        "$VIRTUAL_ENV/bin/python" -m pip "$@"
+    else
+        /usr/bin/python3.12 -m pip "$@"
+    fi
+}
+
+pip3() {
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        "$VIRTUAL_ENV/bin/python" -m pip "$@"
+    else
+        /usr/bin/python3.12 -m pip "$@"
+    fi
+}
 
 ## Requires other dependecies
 alias dkps='docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v ~/git/Self-Host/lazydocker/config:/.config/jesseduffield/lazydocker lazyteam/lazydocker'

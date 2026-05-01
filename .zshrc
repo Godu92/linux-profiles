@@ -68,7 +68,7 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
 # or set a custom format using the strftime function format specifications,
 # see 'man strftime' for details.
-# HIST_STAMPS="mm/dd/yyyy"
+HIST_STAMPS="mm/dd/yyyy"
 
 # Would you like to use another custom folder than $ZSH/custom?
 # ZSH_CUSTOM=/path/to/new-custom-folder
@@ -125,12 +125,14 @@ if [ -e $HOME/git/zsh-autocomplete/zsh-autocomplete.plugin.zsh ]; then
 fi
 
 ### Docker / Podman
-if command -v podman &> /dev/null; then
+if command -v docker &> /dev/null && ! declare -f docker &> /dev/null; then
+    export DOCKER_HOST="unix:///var/run/docker.sock"
+elif command -v podman &> /dev/null; then
+    echo "Docker is not installed, using podman instead"
     export DOCKER_HOST="unix:///var/run/podman/podman.sock"
     export PODMAN_COMPOSE_WARNING_LOGS=false
-elif command -v docker &> /dev/null && ! declare -f docker &> /dev/null; then
-    echo "Podman is not installed. Using docker instead."
-    export DOCKER_HOST="unix:///var/run/docker.sock"
+    alias docker=podman
+    alias docker-compose=podman compose
 fi
 
 export MVN_HOME=/usr/local/apache-maven
@@ -159,8 +161,6 @@ elif [ -f /etc/redhat-release ]; then
   alias yum='dnf'
   alias apt='yum'
   alias apt-get='yum'
-  alias docker='podman'
-  alias docker-compose='podman compose'
 elif [ -f /etc/arch-release ]; then
   alias yum='pacman'
   alias apt='yum'
@@ -168,3 +168,10 @@ elif [ -f /etc/arch-release ]; then
   alias apt-get='yum'
   alias update='sudo pacman -Syu'
 fi
+# Changing default editor to vim
+export EDITOR=vim
+
+# To customize prompt, run `p10k configure` or edit ~/git/linux-profiles/.p10k.zsh.
+[[ ! -f ~/git/linux-profiles/.p10k.zsh ]] || source ~/git/linux-profiles/.p10k.zsh
+
+. "$HOME/.local/share/../bin/env"
