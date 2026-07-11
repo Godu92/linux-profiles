@@ -124,17 +124,6 @@ if [ -e $HOME/git/zsh-autocomplete/zsh-autocomplete.plugin.zsh ]; then
     source $HOME/git/zsh-autocomplete/zsh-autocomplete.plugin.zsh
 fi
 
-### Docker / Podman
-if command -v docker &> /dev/null && ! declare -f docker &> /dev/null; then
-    export DOCKER_HOST="unix:///var/run/docker.sock"
-elif command -v podman &> /dev/null; then
-    echo "Docker is not installed, using podman instead"
-    export DOCKER_HOST="unix:///var/run/podman/podman.sock"
-    export PODMAN_COMPOSE_WARNING_LOGS=false
-    alias docker=podman
-    alias docker-compose=podman compose
-fi
-
 export MVN_HOME=/usr/local/apache-maven
 
 
@@ -154,20 +143,6 @@ export NVM_DIR="$HOME/.config/nvm"
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 
-if [ -f /etc/debian_version ]; then
-  alias yum='apt'
-  alias dnf='yum'
-elif [ -f /etc/redhat-release ]; then
-  alias yum='dnf'
-  alias apt='yum'
-  alias apt-get='yum'
-elif [ -f /etc/arch-release ]; then
-  alias yum='pacman'
-  alias apt='yum'
-  alias dnf='apt'
-  alias apt-get='yum'
-  alias update='sudo pacman -Syu'
-fi
 # Changing default editor to vim
 export EDITOR=vim
 
@@ -175,3 +150,4 @@ export EDITOR=vim
 [[ ! -f ~/git/linux-profiles/.p10k.zsh ]] || source ~/git/linux-profiles/.p10k.zsh
 
 . "$HOME/.local/share/../bin/env"
+export PATH="$HOME/.local/bin:$PATH"

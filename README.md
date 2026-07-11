@@ -10,9 +10,7 @@ Project for common profile settings
 
 ## Source files
 
-The various `./profile` files are for Linux based preferences.
-
-> TODO: Move to own repo
+The various dotfiles (dot-profile files) in this project are for Linux based preferences.
 
 ### One Time
 

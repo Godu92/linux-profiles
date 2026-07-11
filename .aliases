@@ -10,6 +10,34 @@ alias clean-upgrade="update --refresh && upgrade && sudo dnf clean all && sudo d
 alias sudo='sudo '
 alias c='clear'
 alias ipconfig='ifconfig'
+alias vi='vim'
+
+## OS package managers
+
+if [ -f /etc/debian_version ]; then
+  alias yum='apt'
+  alias dnf='yum'
+elif [ -f /etc/redhat-release ]; then
+  alias yum='dnf'
+  alias apt='yum'
+  alias apt-get='yum'
+elif [ -f /etc/arch-release ]; then
+  alias yum='pacman'
+  alias apt='yum'
+  alias dnf='apt'
+  alias apt-get='yum'
+  alias update='sudo pacman -Syu'
+fi
+
+## direnv
+
+if command -v direnv &> /dev/null; then
+    if [ -n "$ZSH_VERSION" ]; then
+        eval "$(direnv hook zsh)"
+    elif [ -n "$BASH_VERSION" ]; then
+        eval "$(direnv hook bash)"
+    fi
+fi
 
 ## Git
 
@@ -22,6 +50,15 @@ alias lda='ls -al --color | sort -k1 -h'
 alias ld='ls --color | sort -k1'
 
 ## Docker / Podman
+
+# Prefer podman when present; only fall back to real docker if it's missing.
+if command -v podman &> /dev/null; then
+    export DOCKER_HOST="unix:///var/run/podman/podman.sock"
+    export PODMAN_COMPOSE_WARNING_LOGS=false
+    alias docker=podman
+elif command -v docker &> /dev/null; then
+    export DOCKER_HOST="unix:///var/run/docker.sock"
+fi
 
 alias dk='docker'
 alias 'docker-compose'='docker compose'
