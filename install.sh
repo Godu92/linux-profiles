@@ -149,7 +149,7 @@ backup_if_needed() {
 }
 
 symlink_dotfiles() {
-    local files=(.zshrc .bashrc .aliases .bash_functions .vimrc .p10k.zsh)
+    local files=(.zshrc .bashrc .aliases .bash_functions .vimrc .nanorc .p10k.zsh)
     local file
     for file in "${files[@]}"; do
         backup_if_needed "$HOME/$file" "$REPO_DIR/$file"
