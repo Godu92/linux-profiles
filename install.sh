@@ -137,10 +137,18 @@ install_direnv() {
 
 backup_if_needed() {
     local target="$1" source="$2"
-    if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+    if [ -L "$target" ]; then
+        if [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+            return
+        fi
+        # A symlink carries no unique content of its own (whatever it points
+        # to still exists untouched elsewhere) - just remove the pointer
+        # rather than "backing it up" as a second, possibly-stale symlink.
+        log "Removing stale symlink $target (was -> $(readlink "$target"))"
+        rm "$target"
         return
     fi
-    if [ -e "$target" ] || [ -L "$target" ]; then
+    if [ -e "$target" ]; then
         local backup
         backup="${target}.pre-linux-profiles.$(date +%s).bak"
         log "Backing up existing $target to $backup"
