@@ -81,7 +81,16 @@ alias ld='ls --color | sort -k1'
 if command -v docker &> /dev/null; then
     export DOCKER_HOST="unix:///var/run/docker.sock"
 elif command -v podman &> /dev/null; then
-    export DOCKER_HOST="unix:///var/run/podman/podman.sock"
+    # Rootless podman (the common default on RHEL/Rocky and elsewhere) uses a
+    # per-user socket; fall back to the rootful system socket if that's not
+    # what's running.
+    _podman_rootless_sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
+    if [ -S "$_podman_rootless_sock" ]; then
+        export DOCKER_HOST="unix://${_podman_rootless_sock}"
+    else
+        export DOCKER_HOST="unix:///var/run/podman/podman.sock"
+    fi
+    unset _podman_rootless_sock
     export PODMAN_COMPOSE_WARNING_LOGS=false
     alias docker=podman
 fi

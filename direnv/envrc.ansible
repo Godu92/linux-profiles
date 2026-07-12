@@ -1,0 +1,16 @@
+# direnv template: Ansible project
+#
+# Usage: copy into your project root as `.envrc`, then run `direnv allow`.
+#
+# Activates a venv the same way direnv/envrc.venv does (ansible is almost
+# always installed via pip into a project-local venv), then points Ansible
+# at this project's own config/inventory/roles if present, so `cd`-ing in
+# gets a fully set-up environment rather than relying on ansible's default
+# discovery or a stray global config.
+
+[[ -d .venv ]] || python3 -m venv .venv
+source .venv/bin/activate
+
+[[ -f ansible.cfg ]] && export ANSIBLE_CONFIG="$PWD/ansible.cfg"
+[[ -e inventory ]] && export ANSIBLE_INVENTORY="$PWD/inventory"
+[[ -d roles ]] && export ANSIBLE_ROLES_PATH="$PWD/roles"

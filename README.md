@@ -44,6 +44,10 @@ get symlinked wholesale:
   a `.venv` on `cd`.
 - `direnv/envrc.conda` — copy to a project's `.envrc` to activate a named
   conda environment on `cd`. Requires the helper below.
+- `direnv/envrc.ansible` — copy to an Ansible project's `.envrc`; activates a
+  `.venv` like `envrc.venv` and also sets `ANSIBLE_CONFIG`/
+  `ANSIBLE_INVENTORY`/`ANSIBLE_ROLES_PATH` when those files/dirs exist in the
+  project.
 - `direnv/direnvrc` — symlink to `~/.config/direnv/direnvrc` once per
   machine; adds the `layout anaconda <env>` helper that `envrc.conda` uses
   (direnv doesn't ship conda support out of the box).
