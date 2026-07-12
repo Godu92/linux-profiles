@@ -1,0 +1,14 @@
+# Arch test image, for the /etc/arch-release branch in install.sh/.aliases.
+FROM archlinux:latest
+
+RUN pacman -Sy --noconfirm archlinux-keyring && pacman -Su --noconfirm
+
+COPY . /tmp/linux-profiles-src
+RUN rm -rf /tmp/linux-profiles-src/.git && \
+    mkdir -p /root/git && \
+    mv /tmp/linux-profiles-src /root/git/linux-profiles
+
+ENV LINUX_PROFILES_DIR=/root/git/linux-profiles
+RUN bash /root/git/linux-profiles/install.sh
+
+CMD ["zsh"]

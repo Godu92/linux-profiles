@@ -1,0 +1,29 @@
+# Disposable containers for exercising install.sh / the dotfiles across the
+# distro families they branch on, without needing to commit first (the
+# Dockerfiles copy the local working tree in directly).
+#
+# Usage:
+#   docker compose -f test/docker-compose.yml build             # smoke-test install.sh on every distro
+#   docker compose -f test/docker-compose.yml run --rm ubuntu   # drop into a provisioned shell
+
+services:
+  ubuntu:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile.ubuntu
+    tty: true
+    stdin_open: true
+
+  rockylinux:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile.rockylinux
+    tty: true
+    stdin_open: true
+
+  archlinux:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile.archlinux
+    tty: true
+    stdin_open: true

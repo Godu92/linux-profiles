@@ -1,0 +1,13 @@
+# Debian-family test image. Raspberry Pi OS shares the same /etc/debian_version
+# code path in install.sh/.aliases, so this image stands in for it too.
+FROM ubuntu:24.04
+
+COPY . /tmp/linux-profiles-src
+RUN rm -rf /tmp/linux-profiles-src/.git && \
+    mkdir -p /root/git && \
+    mv /tmp/linux-profiles-src /root/git/linux-profiles
+
+ENV LINUX_PROFILES_DIR=/root/git/linux-profiles
+RUN bash /root/git/linux-profiles/install.sh
+
+CMD ["zsh"]
