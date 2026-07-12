@@ -131,9 +131,5 @@ fi
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-
-# To customize prompt, run `p10k configure` or edit ~/git/linux-profiles/.p10k.zsh.
-[[ ! -f ~/git/linux-profiles/.p10k.zsh ]] || source ~/git/linux-profiles/.p10k.zsh
-
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 export PATH="$HOME/.local/bin:$PATH"

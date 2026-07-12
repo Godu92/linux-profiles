@@ -33,7 +33,7 @@ You can still just copy or symlink individual dotfiles by hand instead of
 running the installer:
 
 ```bash
-ln -s linux-profiles/.vimrc .vimrc
+ln -s linux-profiles/vim/.vimrc .vimrc
 ```
 
 ### Testing

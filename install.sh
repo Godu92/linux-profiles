@@ -149,12 +149,21 @@ backup_if_needed() {
 }
 
 symlink_dotfiles() {
-    local files=(.zshrc .bashrc .aliases .bash_functions .vimrc .nanorc .p10k.zsh)
-    local file
-    for file in "${files[@]}"; do
-        backup_if_needed "$HOME/$file" "$REPO_DIR/$file"
-        ln -sf "$REPO_DIR/$file" "$HOME/$file"
-        log "Linked $file"
+    # Every dotfile (name starting with `.`) in one of these folders gets
+    # symlinked into $HOME under its own name - add a new dotfile to an
+    # existing folder and it's picked up with no further changes here.
+    # Folders not listed (direnv/, test/) are intentionally excluded: direnv/
+    # mixes in envrc.* templates that must NOT be auto-linked.
+    local folders=(zsh bash common vim nano)
+    local folder file base
+    for folder in "${folders[@]}"; do
+        for file in "$REPO_DIR/$folder"/.[!.]*; do
+            [ -e "$file" ] || continue
+            base="$(basename "$file")"
+            backup_if_needed "$HOME/$base" "$file"
+            ln -sf "$file" "$HOME/$base"
+            log "Linked $base"
+        done
     done
 }
 

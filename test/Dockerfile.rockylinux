@@ -1,5 +1,5 @@
 # RHEL-family test image (RockyLinux stands in for RHEL itself).
-FROM rockylinux:9.7
+FROM rockylinux:9
 
 COPY . /tmp/linux-profiles-src
 RUN rm -rf /tmp/linux-profiles-src/.git && \
