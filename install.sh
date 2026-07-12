@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# linux-profiles installer.
+#
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/Godu92/linux-profiles/main/install.sh | bash
+#
+# Safe to re-run any time (e.g. after a `git pull`) - every step skips
+# anything already installed/linked.
+#
+# Env overrides (mainly useful for local testing):
+#   LINUX_PROFILES_DIR       where to clone/find the repo (default: ~/git/linux-profiles)
+#   LINUX_PROFILES_REPO_URL  git remote to clone (default: this repo on GitHub)
+
+set -euo pipefail
+
+REPO_DIR="${LINUX_PROFILES_DIR:-$HOME/git/linux-profiles}"
+REPO_URL="${LINUX_PROFILES_REPO_URL:-https://github.com/Godu92/linux-profiles.git}"
+
+log() {
+    echo "==> $*"
+}
+
+maybe_sudo() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+detect_os() {
+    if [ -f /etc/debian_version ]; then
+        OS_FAMILY=debian
+    elif [ -f /etc/redhat-release ]; then
+        OS_FAMILY=redhat
+    elif [ -f /etc/arch-release ]; then
+        OS_FAMILY=arch
+    else
+        echo "Unsupported OS: none of /etc/debian_version, /etc/redhat-release, /etc/arch-release found" >&2
+        exit 1
+    fi
+    log "Detected OS family: $OS_FAMILY"
+}
+
+pkg_install() {
+    case "$OS_FAMILY" in
+        debian)
+            maybe_sudo apt-get update -y
+            maybe_sudo apt-get install -y "$@"
+            ;;
+        redhat)
+            # --allowerasing: minimal RHEL9-family images ship curl-minimal,
+            # which conflicts with the full curl package otherwise.
+            if command -v dnf &> /dev/null; then
+                maybe_sudo dnf install -y --allowerasing "$@"
+            else
+                maybe_sudo yum install -y "$@"
+            fi
+            ;;
+        arch)
+            maybe_sudo pacman -Sy --noconfirm "$@"
+            ;;
+    esac
+}
+
+ensure_base_packages() {
+    # nano: guarantees the editor fallback chain in .aliases always has at
+    # least one link, even on minimal images with no editor at all.
+    local packages=(git zsh curl nano)
+    case "$OS_FAMILY" in
+        debian) packages+=(python3-venv python3-pip) ;;  # also pulls in python3 itself
+        redhat) packages+=(python3 python3-pip) ;;
+        arch) packages+=(python python-pip) ;;           # provides /usr/bin/python3
+    esac
+    log "Ensuring base packages are installed: ${packages[*]}"
+    pkg_install "${packages[@]}"
+}
+
+clone_or_update_repo() {
+    if [ -d "$REPO_DIR/.git" ]; then
+        log "linux-profiles already cloned at $REPO_DIR, updating"
+        git -C "$REPO_DIR" pull --ff-only
+    elif [ -d "$REPO_DIR" ]; then
+        log "$REPO_DIR already exists (not a git checkout), using as-is"
+    else
+        log "Cloning linux-profiles to $REPO_DIR"
+        mkdir -p "$(dirname "$REPO_DIR")"
+        git clone "$REPO_URL" "$REPO_DIR"
+    fi
+}
+
+install_oh_my_zsh() {
+    if [ -d "$HOME/.oh-my-zsh" ]; then
+        log "oh-my-zsh already installed, skipping"
+        return
+    fi
+    log "Installing oh-my-zsh"
+    CHSH=no RUNZSH=no KEEP_ZSHRC=yes sh -c \
+        "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+}
+
+install_git_tool() {
+    local name="$1" url="$2" dest="$3"
+    if [ -d "$dest" ]; then
+        log "$name already present at $dest, skipping"
+        return
+    fi
+    log "Installing $name to $dest"
+    git clone --depth 1 "$url" "$dest"
+}
+
+# Extensibility point: every git-clone-based tool is one row here. Adding a
+# new one is a single new line, not a new function.
+install_git_tools() {
+    local zsh_custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+    local tools=(
+        "zsh-autosuggestions|https://github.com/zsh-users/zsh-autosuggestions|${zsh_custom}/plugins/zsh-autosuggestions"
+        "zsh-syntax-highlighting|https://github.com/zsh-users/zsh-syntax-highlighting|${zsh_custom}/plugins/zsh-syntax-highlighting"
+        "powerlevel10k|https://github.com/romkatv/powerlevel10k|${zsh_custom}/themes/powerlevel10k"
+        "zsh-autocomplete|https://github.com/marlonrichert/zsh-autocomplete|${HOME}/git/zsh-autocomplete"
+    )
+    local entry name url dest
+    for entry in "${tools[@]}"; do
+        IFS='|' read -r name url dest <<< "$entry"
+        install_git_tool "$name" "$url" "$dest"
+    done
+}
+
+install_direnv() {
+    if command -v direnv &> /dev/null; then
+        log "direnv already installed, skipping"
+        return
+    fi
+    log "Installing direnv"
+    curl -sfL https://direnv.net/install.sh | bash
+}
+
+backup_if_needed() {
+    local target="$1" source="$2"
+    if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+        return
+    fi
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        local backup
+        backup="${target}.pre-linux-profiles.$(date +%s).bak"
+        log "Backing up existing $target to $backup"
+        mv "$target" "$backup"
+    fi
+}
+
+symlink_dotfiles() {
+    local files=(.zshrc .bashrc .aliases .bash_functions .vimrc .p10k.zsh)
+    local file
+    for file in "${files[@]}"; do
+        backup_if_needed "$HOME/$file" "$REPO_DIR/$file"
+        ln -sf "$REPO_DIR/$file" "$HOME/$file"
+        log "Linked $file"
+    done
+}
+
+symlink_direnvrc() {
+    mkdir -p "$HOME/.config/direnv"
+    backup_if_needed "$HOME/.config/direnv/direnvrc" "$REPO_DIR/direnv/direnvrc"
+    ln -sf "$REPO_DIR/direnv/direnvrc" "$HOME/.config/direnv/direnvrc"
+    log "Linked direnv/direnvrc"
+}
+
+maybe_change_shell() {
+    local zsh_path
+    zsh_path="$(command -v zsh || true)"
+    if [ -z "$zsh_path" ]; then
+        return
+    fi
+    if [ "${SHELL:-}" = "$zsh_path" ]; then
+        log "Default shell is already zsh"
+        return
+    fi
+    if ! { : < /dev/tty; } 2> /dev/null; then
+        log "No TTY available, skipping shell-change prompt (run 'chsh -s $zsh_path' manually if wanted)"
+        return
+    fi
+
+    local reply
+    printf '%s' "Change default shell to zsh ($zsh_path)? [y/N] " > /dev/tty
+    read -r reply < /dev/tty
+    case "$reply" in
+        [Yy]*) chsh -s "$zsh_path" ;;
+        *) log "Skipping shell change" ;;
+    esac
+}
+
+print_summary() {
+    cat <<EOF
+
+==> linux-profiles setup complete.
+
+Linked: .zshrc .bashrc .aliases .bash_functions .vimrc .p10k.zsh
+        ~/.config/direnv/direnvrc
+
+Not automated here - handle these yourself if needed:
+  - Nerd Font: install one on your *client* terminal (this is server-side setup)
+  - conda/miniconda: install separately (see direnv/envrc.conda for the project hookup)
+  - nvm: install via https://github.com/nvm-sh/nvm's own installer if you need Node
+  - docker/podman engine: install separately; .aliases already prefers docker,
+    falling back to podman, whichever you install
+  - root's dotfiles: re-run this script as root if you want the same setup there
+
+Restart your terminal (or run 'exec zsh') to pick everything up.
+EOF
+}
+
+main() {
+    detect_os
+    ensure_base_packages
+    clone_or_update_repo
+    install_oh_my_zsh
+    install_git_tools
+    install_direnv
+    symlink_dotfiles
+    symlink_direnvrc
+    maybe_change_shell
+    print_summary
+}
+
+main "$@"

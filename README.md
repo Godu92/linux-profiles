@@ -3,32 +3,50 @@
 Project for common profile settings
 
 - [linux-profiles](#linux-profiles)
-  - [Source files](#source-files)
-    - [One Time](#one-time)
-    - [Always Updated](#always-updated)
+  - [Setup](#setup)
+    - [Manual / One-off](#manual--one-off)
+    - [Testing](#testing)
     - [ZSH](#zsh)
     - [direnv](#direnv)
 
-## Source files
+## Setup
 
-The various dotfiles (dot-profile files) in this project are for Linux based preferences.
+Supports RHEL/Rocky, Ubuntu, Raspberry Pi OS (Debian-based), and Arch. Run:
 
-### One Time
+```bash
+curl -fsSL https://raw.githubusercontent.com/Godu92/linux-profiles/main/install.sh | bash
+```
 
-They can be used by simply copying into your `home` directory and then restarting your terminal.
+This clones the repo to `~/git/linux-profiles`, installs zsh/oh-my-zsh/
+Powerlevel10k/the custom zsh plugins/direnv (whichever are missing), symlinks
+the dotfiles into `$HOME`, and offers to change your default shell to zsh.
+It's safe to re-run any time (e.g. after a `git pull`) — every step skips
+anything already installed or linked, backing up any pre-existing file it
+would otherwise overwrite.
 
-### Always Updated
+Root's dotfiles aren't linked automatically; re-run the script as root if you
+want the same setup there.
 
-Alternatively, you can link to the files and thus they will be updated anytime this project gets updates.
+### Manual / One-off
 
-Example:
+You can still just copy or symlink individual dotfiles by hand instead of
+running the installer:
 
 ```bash
 ln -s linux-profiles/.vimrc .vimrc
 ```
 
-> Note: You can take this one step further and do the link as `root` as well to have the same alias and preferences there as well
-> TODO: Make script to simplify this process
+### Testing
+
+`test/docker-compose.yml` builds a disposable container per distro family
+(`ubuntu`, `rockylinux`, `archlinux`) that copies the current working tree in
+and runs `install.sh` at build time — a quick way to smoke-test dotfile or
+installer changes before committing:
+
+```bash
+docker compose -f test/docker-compose.yml build            # smoke-test install.sh on every distro
+docker compose -f test/docker-compose.yml run --rm ubuntu  # drop into a provisioned shell
+```
 
 ### ZSH
 
