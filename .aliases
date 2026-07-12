@@ -10,7 +10,6 @@ alias clean-upgrade="update --refresh && upgrade && sudo dnf clean all && sudo d
 alias sudo='sudo '
 alias c='clear'
 alias ipconfig='ifconfig'
-alias vi='vim'
 
 ## OS package managers
 
@@ -39,6 +38,33 @@ if command -v direnv &> /dev/null; then
     fi
 fi
 
+## NVM
+
+export NVM_DIR="$HOME/.config/nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+## Editor
+
+# Prefer nvim locally, vim over SSH; fall back through vi/nano for
+# minimal systems that don't have vim installed at all.
+if [ -n "$SSH_CONNECTION" ]; then
+    _editor_candidates=(vim vi nano)
+else
+    _editor_candidates=(nvim vim vi nano)
+fi
+
+for _editor in "${_editor_candidates[@]}"; do
+    if command -v "$_editor" &> /dev/null; then
+        export EDITOR="$_editor"
+        break
+    fi
+done
+unset _editor_candidates _editor
+
+alias vi="$EDITOR"
+alias vim="$EDITOR"
+
 ## Git
 
 alias git-remove-untracked='git fetch --prune && git branch -r | awk "{print \$1}" | egrep -v -f /dev/fd/0 <(git branch -vv | grep origin) | awk "{print \$1}" | xargs git branch -d'
@@ -51,13 +77,13 @@ alias ld='ls --color | sort -k1'
 
 ## Docker / Podman
 
-# Prefer podman when present; only fall back to real docker if it's missing.
-if command -v podman &> /dev/null; then
+# Prefer docker when present; only check for podman as a fallback.
+if command -v docker &> /dev/null; then
+    export DOCKER_HOST="unix:///var/run/docker.sock"
+elif command -v podman &> /dev/null; then
     export DOCKER_HOST="unix:///var/run/podman/podman.sock"
     export PODMAN_COMPOSE_WARNING_LOGS=false
     alias docker=podman
-elif command -v docker &> /dev/null; then
-    export DOCKER_HOST="unix:///var/run/docker.sock"
 fi
 
 alias dk='docker'
@@ -68,11 +94,16 @@ alias dkdn='dkc down'
 
 ## Python
 
+# oh-my-zsh's python plugin conditionally sets `alias py='python3'`; unalias
+# first so defining these as functions doesn't trigger zsh's "overriding
+# another alias" warning. See .claude/CLAUDE.md for why the plugin is kept.
+unalias python python3 py pip pip3 2>/dev/null
+
 python() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
         "$VIRTUAL_ENV/bin/python" "$@"
     else
-        /usr/bin/python3.12 "$@"
+        command python3 "$@"
     fi
 }
 
@@ -80,7 +111,7 @@ python3() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
         "$VIRTUAL_ENV/bin/python" "$@"
     else
-        /usr/bin/python3
+        command python3 "$@"
     fi
 }
 
@@ -88,7 +119,7 @@ py() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
         "$VIRTUAL_ENV/bin/python" "$@"
     else
-        /usr/bin/python3.12 "$@"
+        command python3 "$@"
     fi
 }
 
@@ -96,7 +127,7 @@ pip() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
         "$VIRTUAL_ENV/bin/python" -m pip "$@"
     else
-        /usr/bin/python3.12 -m pip "$@"
+        command python3 -m pip "$@"
     fi
 }
 
@@ -104,7 +135,7 @@ pip3() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
         "$VIRTUAL_ENV/bin/python" -m pip "$@"
     else
-        /usr/bin/python3.12 -m pip "$@"
+        command python3 -m pip "$@"
     fi
 }
 

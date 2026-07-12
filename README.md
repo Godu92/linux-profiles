@@ -7,6 +7,7 @@ Project for common profile settings
     - [One Time](#one-time)
     - [Always Updated](#always-updated)
     - [ZSH](#zsh)
+    - [direnv](#direnv)
 
 ## Source files
 
@@ -32,3 +33,17 @@ ln -s linux-profiles/.vimrc .vimrc
 ### ZSH
 
 ZSH is currently being used with `FiraMono Nerd Font`
+
+### direnv
+
+`.aliases` hooks `direnv` into the shell automatically if it's installed. The
+`direnv/` folder holds templates to copy where needed, rather than files that
+get symlinked wholesale:
+
+- `direnv/envrc.venv` — copy to a project's `.envrc` to auto-create/activate
+  a `.venv` on `cd`.
+- `direnv/envrc.conda` — copy to a project's `.envrc` to activate a named
+  conda environment on `cd`. Requires the helper below.
+- `direnv/direnvrc` — symlink to `~/.config/direnv/direnvrc` once per
+  machine; adds the `layout anaconda <env>` helper that `envrc.conda` uses
+  (direnv doesn't ship conda support out of the box).

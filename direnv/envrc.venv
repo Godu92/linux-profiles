@@ -1,0 +1,11 @@
+# direnv template: Python venv
+#
+# Usage: copy into your project root as `.envrc`, then run `direnv allow`.
+#
+# Creates `.venv` on first use if it doesn't already exist, and activates it
+# whenever you `cd` into this directory. Uses the `.venv` name so it's the
+# same venv the oh-my-zsh python plugin's `vrun`/`mkv` commands and this
+# repo's python()/pip() functions ($VIRTUAL_ENV-aware) already expect.
+
+[[ -d .venv ]] || python3 -m venv .venv
+source .venv/bin/activate

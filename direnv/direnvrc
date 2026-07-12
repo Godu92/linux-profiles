@@ -1,0 +1,27 @@
+# Global direnv extensions.
+#
+# Symlink this to ~/.config/direnv/direnvrc so `layout anaconda <env>` is
+# available in any project's .envrc:
+#   ln -s ~/git/linux-profiles/direnv/direnvrc ~/.config/direnv/direnvrc
+#
+# direnv doesn't ship an anaconda layout out of the box (it was removed
+# since conda's own `activate` does more than mutate PATH). This recreates
+# it by sourcing conda's real activation hook so CONDA_PREFIX,
+# CONDA_DEFAULT_ENV, etc. all get set the same way `conda activate` would.
+
+layout_anaconda() {
+  local env_name="${1:-base}"
+
+  if [ -d "$HOME/miniconda3" ]; then
+    source "$HOME/miniconda3/etc/profile.d/conda.sh"
+  elif [ -d "$HOME/anaconda3" ]; then
+    source "$HOME/anaconda3/etc/profile.d/conda.sh"
+  elif [ -d "$HOME/miniforge3" ]; then
+    source "$HOME/miniforge3/etc/profile.d/conda.sh"
+  else
+    log_error "layout anaconda: no conda install found under \$HOME (checked miniconda3/anaconda3/miniforge3)"
+    exit 1
+  fi
+
+  conda activate "$env_name"
+}

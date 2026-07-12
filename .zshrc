@@ -81,7 +81,7 @@ ZSH_COLORIZE_CHROMA_FORMATTER=terminal256
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git podman docker ssh sudo command-not-found ansible python yum zsh-autosuggestions zsh-syntax-highlighting mvn colorize)
+plugins=(git docker podman ssh sudo command-not-found ansible python yum zsh-autosuggestions zsh-syntax-highlighting mvn colorize)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -91,13 +91,6 @@ source $ZSH/oh-my-zsh.sh
 
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
-
-# Preferred editor for local and remote sessions
-if [[ -n $SSH_CONNECTION ]]; then
-  export EDITOR='vim'
-else
-  export EDITOR='nvim'
-fi
 
 # Compilation flags
 # export ARCHFLAGS="-arch $(uname -m)"
@@ -135,19 +128,12 @@ if [ -e $HOME/.bash_functions ]; then
     source $HOME/.bash_functions
 fi
 
-export NVM_DIR="$HOME/.config/nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 
-# Changing default editor to vim
-export EDITOR=vim
-
 # To customize prompt, run `p10k configure` or edit ~/git/linux-profiles/.p10k.zsh.
 [[ ! -f ~/git/linux-profiles/.p10k.zsh ]] || source ~/git/linux-profiles/.p10k.zsh
 
-. "$HOME/.local/share/../bin/env"
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 export PATH="$HOME/.local/bin:$PATH"

@@ -1,0 +1,11 @@
+# direnv template: conda environment
+#
+# Usage: copy into your project root as `.envrc`, then run `direnv allow`.
+#
+# Requires the `layout_anaconda` helper from direnv/direnvrc in this repo,
+# symlinked to ~/.config/direnv/direnvrc.
+#
+# Replace "myenv" with the conda environment name for this project — it
+# must already exist (create it first with `conda create -n myenv ...`).
+
+layout anaconda myenv
