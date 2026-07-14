@@ -18,8 +18,12 @@ layout_anaconda() {
     source "$HOME/anaconda3/etc/profile.d/conda.sh"
   elif [ -d "$HOME/miniforge3" ]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
+  elif [ -f "/etc/profile.d/conda.sh" ]; then
+    # RHEL/Fedora package (e.g. `conda` rpm): installed system-wide rather
+    # than under $HOME, with envs kept in ~/.conda/envs per environments.txt.
+    source "/etc/profile.d/conda.sh"
   else
-    log_error "layout anaconda: no conda install found under \$HOME (checked miniconda3/anaconda3/miniforge3)"
+    log_error "layout anaconda: no conda install found under \$HOME (checked miniconda3/anaconda3/miniforge3) or /etc/profile.d/conda.sh"
     exit 1
   fi
 
