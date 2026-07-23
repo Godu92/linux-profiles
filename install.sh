@@ -253,6 +253,20 @@ maybe_change_shell() {
         log "Default shell is already zsh"
         return
     fi
+
+    # chsh edits /etc/passwd directly, which only works for genuinely local
+    # accounts. LDAP/FreeIPA-managed accounts resolve fine via sssd (id/login
+    # work normally) but have no /etc/passwd entry at all, so chsh can't
+    # touch them - detect that up front instead of prompting for something
+    # that's guaranteed to fail.
+    local acct
+    acct="$(id -un)"
+    if ! grep -q "^${acct}:" /etc/passwd 2> /dev/null; then
+        log "Account '$acct' isn't in /etc/passwd (likely managed remotely, e.g. FreeIPA/LDAP) - chsh can't change it locally."
+        log "Ask your admin, or if self-service is allowed: ipa user-mod --shell $zsh_path $acct"
+        return
+    fi
+
     if ! { : < /dev/tty; } 2> /dev/null; then
         log "No TTY available, skipping shell-change prompt (run 'chsh -s $zsh_path' manually if wanted)"
         return
@@ -262,9 +276,15 @@ maybe_change_shell() {
     printf '%s' "Change default shell to zsh ($zsh_path)? [y/N] " > /dev/tty
     read -r reply < /dev/tty
     case "$reply" in
-        [Yy]*) chsh -s "$zsh_path" ;;
+        [Yy]*)
+            if ! chsh -s "$zsh_path"; then
+                log "WARNING: chsh failed - if your account is managed by FreeIPA/LDAP, try: ipa user-mod --shell $zsh_path $acct (or ask your admin)"
+                FAILED_STEPS+=("chsh (default shell change)")
+            fi
+            ;;
         *) log "Skipping shell change" ;;
     esac
+    return 0
 }
 
 print_summary() {
