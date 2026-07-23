@@ -16,8 +16,25 @@ set -euo pipefail
 REPO_DIR="${LINUX_PROFILES_DIR:-$HOME/git/linux-profiles}"
 REPO_URL="${LINUX_PROFILES_REPO_URL:-https://github.com/Godu92/linux-profiles.git}"
 
+# Steps/items that failed but didn't abort the run - reported at the end so
+# a single bad package or flaky clone doesn't silently leave a half-linked
+# profile with no indication anything went wrong.
+FAILED_STEPS=()
+
 log() {
     echo "==> $*"
+}
+
+# Runs a top-level step; on failure, records it and keeps going instead of
+# letting one step's failure (via set -e) abort every step after it.
+run_step() {
+    local desc="$1"
+    shift
+    if ! "$@"; then
+        log "FAILED: $desc - continuing with remaining steps"
+        FAILED_STEPS+=("$desc")
+    fi
+    return 0
 }
 
 maybe_sudo() {
@@ -26,6 +43,18 @@ maybe_sudo() {
     else
         sudo "$@"
     fi
+}
+
+# Corporate/hardened machines commonly have no user-writable directory on
+# $PATH at all (no sudo, and ~/.local/bin doesn't exist yet) - guarantee one
+# exists so anything installed at the user level (direnv, pip --user, etc.)
+# has somewhere to go without needing root.
+ensure_local_bin_on_path() {
+    mkdir -p "$HOME/.local/bin"
+    case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) PATH="$HOME/.local/bin:$PATH" ;;
+    esac
 }
 
 detect_os() {
@@ -42,23 +71,31 @@ detect_os() {
     log "Detected OS family: $OS_FAMILY"
 }
 
-pkg_install() {
+pkg_update_cache() {
+    case "$OS_FAMILY" in
+        debian) maybe_sudo apt-get update -y ;;
+        arch) maybe_sudo pacman -Sy --noconfirm ;;
+        redhat) : ;;  # dnf/yum sync metadata automatically as needed
+    esac
+}
+
+pkg_install_one() {
+    local pkg="$1"
     case "$OS_FAMILY" in
         debian)
-            maybe_sudo apt-get update -y
-            maybe_sudo apt-get install -y "$@"
+            maybe_sudo apt-get install -y "$pkg"
             ;;
         redhat)
             # --allowerasing: minimal RHEL9-family images ship curl-minimal,
             # which conflicts with the full curl package otherwise.
             if command -v dnf &> /dev/null; then
-                maybe_sudo dnf install -y --allowerasing "$@"
+                maybe_sudo dnf install -y --allowerasing "$pkg"
             else
-                maybe_sudo yum install -y "$@"
+                maybe_sudo yum install -y "$pkg"
             fi
             ;;
         arch)
-            maybe_sudo pacman -Sy --noconfirm "$@"
+            maybe_sudo pacman -S --noconfirm "$pkg"
             ;;
     esac
 }
@@ -73,7 +110,15 @@ ensure_base_packages() {
         arch) packages+=(python python-pip) ;;           # provides /usr/bin/python3
     esac
     log "Ensuring base packages are installed: ${packages[*]}"
-    pkg_install "${packages[@]}"
+    pkg_update_cache
+    local pkg
+    for pkg in "${packages[@]}"; do
+        if ! pkg_install_one "$pkg"; then
+            log "WARNING: failed to install '$pkg' - continuing with the rest"
+            FAILED_STEPS+=("package: $pkg")
+        fi
+    done
+    return 0
 }
 
 clone_or_update_repo() {
@@ -122,8 +167,12 @@ install_git_tools() {
     local entry name url dest
     for entry in "${tools[@]}"; do
         IFS='|' read -r name url dest <<< "$entry"
-        install_git_tool "$name" "$url" "$dest"
+        if ! install_git_tool "$name" "$url" "$dest"; then
+            log "WARNING: failed to install $name - continuing with the rest"
+            FAILED_STEPS+=("git tool: $name")
+        fi
     done
+    return 0
 }
 
 install_direnv() {
@@ -132,7 +181,10 @@ install_direnv() {
         return
     fi
     log "Installing direnv"
-    curl -sfL https://direnv.net/install.sh | bash
+    # Pin bin_path explicitly rather than let the installer scan $PATH for a
+    # writeable directory - on a machine with no sudo and nothing writeable
+    # on $PATH yet, that scan finds nothing and the installer just dies.
+    curl -sfL https://direnv.net/install.sh | bin_path="$HOME/.local/bin" bash
 }
 
 backup_if_needed() {
@@ -156,6 +208,14 @@ backup_if_needed() {
     fi
 }
 
+symlink_one_dotfile() {
+    local file="$1" base
+    base="$(basename "$file")"
+    backup_if_needed "$HOME/$base" "$file" || return 1
+    ln -sf "$file" "$HOME/$base" || return 1
+    log "Linked $base"
+}
+
 symlink_dotfiles() {
     # Every dotfile (name starting with `.`) in one of these folders gets
     # symlinked into $HOME under its own name - add a new dotfile to an
@@ -163,16 +223,17 @@ symlink_dotfiles() {
     # Folders not listed (direnv/, test/) are intentionally excluded: direnv/
     # mixes in envrc.* templates that must NOT be auto-linked.
     local folders=(zsh bash common vim nano)
-    local folder file base
+    local folder file
     for folder in "${folders[@]}"; do
         for file in "$REPO_DIR/$folder"/.[!.]*; do
             [ -e "$file" ] || continue
-            base="$(basename "$file")"
-            backup_if_needed "$HOME/$base" "$file"
-            ln -sf "$file" "$HOME/$base"
-            log "Linked $base"
+            if ! symlink_one_dotfile "$file"; then
+                log "WARNING: failed to link $(basename "$file") - continuing with the rest"
+                FAILED_STEPS+=("symlink: $(basename "$file")")
+            fi
         done
     done
+    return 0
 }
 
 symlink_direnvrc() {
@@ -224,19 +285,38 @@ Not automated here - handle these yourself if needed:
 
 Restart your terminal (or run 'exec zsh') to pick everything up.
 EOF
+
+    if [ "${#FAILED_STEPS[@]}" -gt 0 ]; then
+        echo
+        echo "The following did NOT succeed - re-run this script after addressing them:"
+        local f
+        for f in "${FAILED_STEPS[@]}"; do
+            echo "  - $f"
+        done
+    fi
 }
 
 main() {
     detect_os
-    ensure_base_packages
-    clone_or_update_repo
-    install_oh_my_zsh
-    install_git_tools
-    install_direnv
-    symlink_dotfiles
-    symlink_direnvrc
+    ensure_local_bin_on_path
+    run_step "Installing base packages" ensure_base_packages
+
+    # Hard stop: every step after this reads dotfiles out of $REPO_DIR, so
+    # there's no useful way to continue if this itself fails.
+    if ! clone_or_update_repo; then
+        log "FATAL: could not clone or update the repo at $REPO_DIR - nothing else can proceed without it"
+        exit 1
+    fi
+
+    run_step "Installing oh-my-zsh" install_oh_my_zsh
+    run_step "Installing zsh plugins/theme" install_git_tools
+    run_step "Installing direnv" install_direnv
+    run_step "Linking dotfiles" symlink_dotfiles
+    run_step "Linking direnv config" symlink_direnvrc
     maybe_change_shell
     print_summary
+
+    [ "${#FAILED_STEPS[@]}" -eq 0 ]
 }
 
 main "$@"
