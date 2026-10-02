@@ -30,3 +30,13 @@ fi
 if [ -e $HOME/.bash_functions ]; then
     source $HOME/.bash_functions
 fi
+
+# Auto-switch to zsh if it's installed and we're not already running it.
+# Only for interactive shells, to avoid hijacking scripts that use #!/bin/bash.
+case "$-" in
+    *i*)
+        if [ -z "$ZSH_VERSION" ] && [ "$(ps -p $$ -o comm=)" != "zsh" ] && command -v zsh >/dev/null 2>&1; then
+            exec zsh
+        fi
+        ;;
+esac
